@@ -59,7 +59,7 @@ schema.add_field(
 schema.add_field(
     field_name="embedding",
     datatype=DataType.FLOAT_VECTOR,
-    dim=768
+    dim=512
 )
 
 schema.add_field(
