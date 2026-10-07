@@ -31,8 +31,34 @@ class AlunoRepository:
             data=[dados]
         )
 
+    # READ - buscar por embedding
+    def buscar_por_embedding(self, embedding, limite=1):
+
+        # Carrega a coleção na memória
+        self.client.load_collection(
+            collection_name=ZILLIZ_COLLECTION
+        )
+
+        # Realiza a busca por similaridade
+        resultados = self.client.search(
+            collection_name=ZILLIZ_COLLECTION,
+            data=[embedding],
+            anns_field="embedding",
+            limit=limite,
+            output_fields=[
+                "matricula",
+                "nome",
+                "telefone",
+                "responsavel",
+                "status"
+            ],
+        )
+
+        return resultados
+
     # READ - buscar por matrícula
     def buscar_por_matricula(self, matricula):
+
         return self.client.get(
             collection_name=ZILLIZ_COLLECTION,
             ids=[matricula]
@@ -40,6 +66,7 @@ class AlunoRepository:
 
     # READ - listar todos
     def listar(self):
+
         return self.client.query(
             collection_name=ZILLIZ_COLLECTION,
             filter="matricula != ''",
@@ -55,6 +82,7 @@ class AlunoRepository:
 
     # READ - buscar por nome
     def buscar_por_nome(self, nome):
+
         return self.client.query(
             collection_name=ZILLIZ_COLLECTION,
             filter=f'nome like "%{nome}%"',
@@ -70,6 +98,7 @@ class AlunoRepository:
 
     # UPDATE
     def atualizar(self, aluno):
+
         dados = {
             "matricula": aluno.matricula,
             "nome": aluno.nome,
@@ -86,6 +115,7 @@ class AlunoRepository:
 
     # DELETE
     def excluir(self, matricula):
+
         return self.client.delete(
             collection_name=ZILLIZ_COLLECTION,
             ids=[matricula]
