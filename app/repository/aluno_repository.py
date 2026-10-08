@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from pymilvus import MilvusClient
 
 from app.config.settings import (
