@@ -19,7 +19,8 @@ class AlunoRepository:
     # CREATE
     def inserir(self, aluno):
         dados = {
-            "matricula": aluno.matricula,
+            # Converte para string por segurança, caso o Zilliz espere um VARCHAR
+            "matricula": str(aluno.matricula),
             "nome": aluno.nome,
             "telefone": aluno.telefone,
             "embedding": aluno.embedding,
@@ -31,6 +32,41 @@ class AlunoRepository:
             collection_name=ZILLIZ_COLLECTION,
             data=[dados]
         )
+
+    # READ - busca em lote dos rostos detetados numa sala
+    def buscar_faces(self, embeddings, threshold=0.5, limite=1):
+        """Recebe os vetores, aplica o limiar de confiança e formata a resposta."""
+        self.client.load_collection(collection_name=ZILLIZ_COLLECTION)
+
+        # O Milvus devolve uma lista de resultados para cada rosto procurado
+        resultados_brutos = self.client.search(
+            collection_name=ZILLIZ_COLLECTION,
+            data=embeddings,
+            anns_field="embedding",
+            limit=limite,
+            output_fields=["matricula"]
+        )
+
+        search_results = []
+
+        # Formata a resposta para encaixar perfeitamente no AlunoService
+        for hits in resultados_brutos:
+            if hits and len(hits) > 0:
+                melhor_resultado = hits[0]
+                score = melhor_resultado.get("distance", 0.0)
+
+                # Só considera válido se a distância cosseno atingir o threshold
+                if score >= threshold:
+                    search_results.append({
+                        "student_id": melhor_resultado["entity"]["matricula"],
+                        "score": score
+                    })
+                else:
+                    search_results.append(None) # Rosto detetado, mas não reconhecido
+            else:
+                search_results.append(None)
+
+        return search_results
 
     # READ - buscar por embedding
     def buscar_por_embedding(self, embedding, limite=1):
@@ -101,7 +137,7 @@ class AlunoRepository:
     def atualizar(self, aluno):
 
         dados = {
-            "matricula": aluno.matricula,
+            "matricula": str(aluno.matricula),
             "nome": aluno.nome,
             "telefone": aluno.telefone,
             "embedding": aluno.embedding,

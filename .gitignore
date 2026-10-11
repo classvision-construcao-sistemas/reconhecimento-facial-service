@@ -1,2 +1,12 @@
 venv/
 .env
+
+__pycache__/
+*.py[cod]
+
+# Imagens temporárias geradas pelo FaceExtractionService
+temp_single_face_*.jpg
+temp_multi_face_*.jpg
+
+# Pesos dos modelos descarregados pelo DeepFace
+.deepface/
