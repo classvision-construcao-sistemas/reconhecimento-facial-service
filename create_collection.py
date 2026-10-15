@@ -2,6 +2,7 @@
 from pymilvus import MilvusClient, DataType
 
 from app.config.settings import (
+    validar_credenciais,
     ZILLIZ_URI,
     ZILLIZ_TOKEN,
     ZILLIZ_COLLECTION
@@ -11,6 +12,8 @@ from app.config.settings import (
 # =========================================================
 # CONEXÃO COM ZILLIZ
 # =========================================================
+
+validar_credenciais()
 
 client = MilvusClient(
     uri=ZILLIZ_URI,
