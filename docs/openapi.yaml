@@ -1,0 +1,170 @@
+openapi: 3.0.3
+info:
+  title: ClassVision - Microsserviço de Reconhecimento Facial
+  version: 1.1.0
+  description: |
+    Cadastro biométrico de alunos e auditoria de sala por reconhecimento facial
+    (DeepFace/ArcFace + Zilliz Cloud/Milvus). Os embeddings nunca são devolvidos.
+servers:
+  - url: http://localhost:5000
+tags:
+  - name: Alunos
+  - name: Auditoria
+paths:
+  /api/v1/cadastrar-aluno:
+    post:
+      tags: [Alunos]
+      summary: Cadastra a biometria e os dados de um aluno
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [student_id, image]
+              properties:
+                student_id:
+                  type: string
+                  maxLength: 20
+                  description: Matrícula do aluno (também aceito como campo `matricula`).
+                  example: "2024001"
+                image:
+                  type: string
+                  format: binary
+                  description: Foto do rosto do aluno (JPEG/PNG).
+                nome:
+                  type: string
+                  maxLength: 150
+                telefone:
+                  type: string
+                  maxLength: 20
+                responsavel:
+                  type: string
+                  maxLength: 150
+                status:
+                  type: string
+                  maxLength: 20
+                  example: ativo
+      responses:
+        "201":
+          description: Aluno cadastrado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: {type: string, example: Aluno 2024001 cadastrado com sucesso.}
+                  student_id: {type: string, example: "2024001"}
+                  aluno: {$ref: "#/components/schemas/Aluno"}
+        "400":
+          description: Campo obrigatório ausente, tamanho excedido, imagem inválida ou nenhum rosto válido.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Erro"}
+        "409":
+          description: Já existe aluno cadastrado com a matrícula.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Erro"}
+        "500":
+          description: Erro interno (IA ou base vetorial).
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Erro"}
+  /api/v1/alunos/{matricula}:
+    parameters:
+      - name: matricula
+        in: path
+        required: true
+        schema: {type: string, maxLength: 20}
+    get:
+      tags: [Alunos]
+      summary: Consulta os dados de um aluno (sem embedding)
+      responses:
+        "200":
+          description: Aluno encontrado.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Aluno"}
+        "404":
+          description: Aluno não encontrado.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Erro"}
+    delete:
+      tags: [Alunos]
+      summary: Exclui o aluno e a sua biometria
+      responses:
+        "200":
+          description: Aluno excluído.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: {type: string}
+                  student_id: {type: string}
+        "404":
+          description: Aluno não encontrado.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Erro"}
+  /api/v1/auditar-sala:
+    post:
+      tags: [Auditoria]
+      summary: Reconhece os alunos presentes numa foto da turma
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Auditoria concluída.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: {type: string}
+                  recognized_students:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        student_id: {type: string}
+                        confidence_score: {type: number, format: float, description: Similaridade cosseno (>= 0.5).}
+                        facial_area:
+                          type: object
+                          properties:
+                            x: {type: integer}
+                            y: {type: integer}
+                            w: {type: integer}
+                            h: {type: integer}
+                  unrecognized_count: {type: integer}
+                  total_faces_detected: {type: integer}
+        "400":
+          description: Imagem ausente ou inválida.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Erro"}
+components:
+  schemas:
+    Aluno:
+      type: object
+      properties:
+        matricula: {type: string, example: "2024001"}
+        nome: {type: string, example: Maria Silva}
+        telefone: {type: string, example: "64999990000"}
+        responsavel: {type: string, example: João Silva}
+        status: {type: string, example: ativo}
+    Erro:
+      type: object
+      properties:
+        error: {type: string}
