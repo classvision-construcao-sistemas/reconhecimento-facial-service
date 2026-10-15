@@ -2,10 +2,9 @@ class Aluno:
     """
     Entidade persistida na coleção vetorial do Zilliz Cloud.
 
-    O motor biométrico só conhece a matrícula e o embedding facial. Os campos
-    biográficos (nome, telefone, responsável, status) são obrigatórios no schema
-    da coleção, por isso recebem string vazia por omissão — é esse o "bypass"
-    que mantém a inserção válida guardando apenas biometria + matrícula.
+    A matrícula e o embedding facial são obrigatórios. Os campos biográficos
+    (nome, telefone, responsável, status) são opcionais no cadastro; como são
+    obrigatórios no schema da coleção, recebem string vazia quando omitidos.
     """
 
     def __init__(
