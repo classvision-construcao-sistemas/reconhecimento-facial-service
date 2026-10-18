@@ -38,6 +38,9 @@ python main.py
 
 Servidor em `http://0.0.0.0:5000`.
 
+Na primeira execução, o DeepFace pode demorar enquanto prepara os modelos.
+Confirme o serviço em `http://localhost:5000/api/health`.
+
 ## Documentação da API (Swagger)
 
 Com o servidor em execução:
@@ -49,6 +52,7 @@ Com o servidor em execução:
 
 | Método | Rota | Descrição |
 | --- | --- | --- |
+| GET | `/api/health` | Verifica se o serviço iniciou e informa o armazenamento ativo |
 | POST | `/api/v1/cadastrar-aluno` | Cadastra biometria e dados do aluno (multipart/form-data) |
 | GET | `/api/v1/alunos/<matricula>` | Consulta os dados do aluno (sem embedding) |
 | DELETE | `/api/v1/alunos/<matricula>` | Exclui o aluno e a biometria |

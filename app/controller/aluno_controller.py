@@ -21,6 +21,14 @@ aluno_repository = AlunoRepository()
 aluno_service = AlunoService(aluno_repository, face_extraction_service)
 
 
+@aluno_bp.route('/health', methods=['GET'])
+def health():
+    return jsonify({
+        "status": "ok",
+        "vector_store": "milvus",
+    }), 200
+
+
 @aluno_bp.route('/v1/cadastrar-aluno', methods=['POST'])
 def cadastrar_aluno():
     """
@@ -57,7 +65,7 @@ def cadastrar_aluno():
     except AlunoJaCadastradoError as e:
         return jsonify({"error": str(e)}), 409
     except ValueError as ve:
-        logging.warning(f"Erro de validação ao cadastrar aluno: {str(ve)}")
+        logging.exception(f"Erro de validação ao cadastrar aluno: {str(ve)}")
         return jsonify({"error": str(ve)}), 400
     except Exception as e:
         logging.error(f"Erro interno ao cadastrar aluno: {str(e)}")
@@ -112,7 +120,7 @@ def auditar_sala():
         return jsonify(resultado), 200
 
     except ValueError as ve:
-        logging.warning(f"Erro de validação ao auditar sala: {str(ve)}")
+        logging.exception(f"Erro de validação ao auditar sala: {str(ve)}")
         return jsonify({"error": str(ve)}), 400
     except Exception as e:
         logging.error(f"Erro interno ao auditar sala: {str(e)}")
