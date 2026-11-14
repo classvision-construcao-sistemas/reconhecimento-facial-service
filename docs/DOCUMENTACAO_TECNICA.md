@@ -56,7 +56,7 @@ reconhecimento-facial-service/
     ├── config/settings.py                 -> credenciais Zilliz
     ├── controller/aluno_controller.py     -> blueprint aluno_bp (HTTP)
     ├── service/aluno_service.py           -> orquestração do domínio
-    ├── service/face_extraction_service.py -> motor de IA (DeepFace/ArcFace)
+    ├── service/face_extraction_service.py -> motor de IA (SCRFD + TopoFR)
     ├── repository/aluno_repository.py     -> persistência vetorial
     ├── model/aluno.py                     -> entidade Aluno
     └── util/image_processor.py            -> decodificação de imagens
@@ -84,7 +84,7 @@ A camada de orquestração do domínio.
 
 ### `app/service/face_extraction_service.py` -> Classe `FaceExtractionService`
 A camada de inteligência artificial.
-- **Função:** É o motor de IA do microsserviço, que encapsula o acesso à biblioteca `DeepFace` (deteção com `detector_backend="mtcnn"`, vetorização com `model_name="ArcFace"`). Implementa `process_single_face` e `process_multiple_faces`, operando em duas vias: extração singular ou auditoria densa. Descarta qualquer deteção com confiança inferior ou igual a `0.6`, evitando falsos positivos antes da vetorização ArcFace.
+- **Função:** É o motor de IA do microsserviço. Deteta os rostos com o **SCRFD-10G** numa cópia reduzida da foto (1024 px), leva os 5 landmarks de cada rosto para a resolução original, alinha cada rosto em 112×112 com `norm_crop` (o mesmo molde usado no treino do reconhecedor) e vetoriza todos num único lote com o **TopoFR R50** (treinado em Glint360K), produzindo embeddings de 512 dimensões normalizados. Os dois modelos correm em `onnxruntime` e são carregados apenas no primeiro uso. Implementa `process_single_face` e `process_multiple_faces`. Descarta deteções com confiança inferior ou igual a `LIMIAR_DETECCAO`.
 
 ### `app/repository/aluno_repository.py` -> Classe `AlunoRepository`
 A camada de infraestrutura e persistência de dados.
@@ -115,7 +115,7 @@ Script utilitário de bootstrap.
   - `image` (ficheiro): Fotografia nítida do rosto do aluno (PNG, JPG).
 - **Códigos HTTP Possíveis:**
   - `201 Created`: Cadastro realizado com sucesso.
-  - `400 Bad Request`: Parâmetros em falta, ficheiro corrompido ou rosto não validado pela IA (confiança <= 0.6).
+  - `400 Bad Request`: Parâmetros em falta, ficheiro corrompido ou rosto não validado pela IA (confiança <= `LIMIAR_DETECCAO`).
   - `500 Internal Server Error`: Falha inesperada (ex: Zilliz em baixo).
 - **Esquema de Resposta (Sucesso 201):**
   ```json
@@ -133,7 +133,7 @@ Script utilitário de bootstrap.
 
 ### 3.2 Auditar Sala
 - **URL:** `POST /api/v1/auditar-sala`
-- **Descrição:** Analisa uma fotografia de uma sala de aula de fundo denso, deteta todos os rostos viáveis (confiança > 0.6) e identifica-os comparando com o registo.
+- **Descrição:** Analisa uma fotografia de uma sala de aula de fundo denso, deteta todos os rostos viáveis (confiança > `LIMIAR_DETECCAO`) e identifica-os comparando com o registo.
 - **Content-Type:** `multipart/form-data`
 - **Payload Esperado:**
   - `image` (ficheiro): Fotografia da sala de aula contendo os alunos.
@@ -166,6 +166,6 @@ Script utilitário de bootstrap.
 
 ## 4. Fluxo Concetual de Informação
 
-Quando um pedido chega ao microsserviço (seja para cadastro ou para auditoria), os bytes em bruto (`multipart/form-data`) são interceptados pelo **aluno_controller** e repassados ao **ImageProcessor**, que utiliza o OpenCV para decodificar os binários numa matriz NumPy tridimensional segura. Essa matriz é encaminhada ao **AlunoService**, que aciona o motor **FaceExtractionService**. Neste ponto entra o detetor do DeepFace, capaz de identificar e alinhar caixas delimitadoras (*bounding boxes*) de rostos mesmo em cenas amplas e densas (como o fundo de uma sala de aula). O serviço descarta instantaneamente qualquer deteção cuja confiança seja igual ou inferior a 0.6. Para os rostos filtrados e alinhados, a imagem recortada (*crop*) alimenta o modelo **ArcFace**, que processa as feições geométricas convertendo-as numa representação numérica altamente compacta — um *embedding* (vetor) de 512 dimensões.
+Quando um pedido chega ao microsserviço (seja para cadastro ou para auditoria), os bytes em bruto (`multipart/form-data`) são interceptados pelo **aluno_controller** e repassados ao **ImageProcessor**, que utiliza o OpenCV para decodificar os binários numa matriz NumPy tridimensional segura. Essa matriz é encaminhada ao **AlunoService**, que aciona o motor **FaceExtractionService**. Neste ponto entra o detetor **SCRFD**, que localiza os rostos numa cópia reduzida da foto — inclusive rostos pequenos, como os do fundo de uma sala de aula — e devolve, para cada um, a caixa delimitadora e 5 pontos de referência (olhos, nariz e cantos da boca). O serviço descarta as deteções cuja confiança seja igual ou inferior a `LIMIAR_DETECCAO`. Cada rosto restante é então alinhado a partir da **foto em resolução original**: os 5 pontos são levados por uma transformação de semelhança para posições fixas numa imagem de 112×112, exatamente como nos dados de treino do reconhecedor. Os rostos alinhados alimentam, num único lote, o modelo **TopoFR**, que os converte em *embeddings* (vetores) de 512 dimensões normalizados.
 
-No caso de cadastro, esse vetor é remetido ao **AlunoRepository**, onde é acoplado à `matricula` e guardado na coleção vetorial do Zilliz Cloud — com os campos biográficos preenchidos como string vazia, pois o microsserviço é um motor puramente biométrico. Na auditoria, os múltiplos vetores da sala são enviados em lote ao Milvus; este utiliza o índice `AUTOINDEX` e compara rapidamente os 512 pontos flutuantes através da métrica de **Distância Cosseno** (*Cosine Distance*). Os resultados que atinjam o limiar de similaridade (`0.5`) atestam a identidade e traduzem-se, no fim da cadeia, na confirmação de presença dos alunos na sala; os rostos detetados sem correspondência acima do limiar são contabilizados como desconhecidos e devolvidos ao sistema principal em Java apenas como contagem.
+No caso de cadastro, esse vetor é remetido ao **AlunoRepository**, onde é acoplado à `matricula` e guardado na coleção vetorial do Zilliz Cloud — com os campos biográficos preenchidos como string vazia, pois o microsserviço é um motor puramente biométrico. Na auditoria, os múltiplos vetores da sala são enviados em lote ao Milvus; este utiliza o índice `AUTOINDEX` e compara rapidamente os 512 pontos flutuantes através da métrica de **Distância Cosseno** (*Cosine Distance*). Os resultados que atinjam o limiar de similaridade (`LIMIAR_RECONHECIMENTO`, padrão `0.5`) atestam a identidade e traduzem-se, no fim da cadeia, na confirmação de presença dos alunos na sala; os rostos detetados sem correspondência acima do limiar são contabilizados como desconhecidos e devolvidos ao sistema principal em Java apenas como contagem.

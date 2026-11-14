@@ -1,31 +1,12 @@
 import io
 import re
-import sys
-import types
 
 import cv2
 import numpy as np
 import pytest
 
-
-# ---------------------------------------------------------------------------
-# Stub do DeepFace: evita instalar TensorFlow e descarregar pesos nos testes.
-# Tem de ser registado antes de importar a aplicação.
-# ---------------------------------------------------------------------------
-if "deepface" not in sys.modules:
-    deepface_stub = types.ModuleType("deepface")
-
-    class _DeepFaceStub:
-        @staticmethod
-        def represent(*args, **kwargs):
-            raise RuntimeError("DeepFace não deve ser chamado nos testes.")
-
-    deepface_stub.DeepFace = _DeepFaceStub
-    sys.modules["deepface"] = deepface_stub
-
-
-from app import create_app  # noqa: E402
-from app.controller import aluno_controller  # noqa: E402
+from app import create_app
+from app.controller import aluno_controller
 
 
 FILTRO_MATRICULA = re.compile(r'^matricula == "((?:[^"\\]|\\.)*)"$')

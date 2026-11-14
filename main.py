@@ -2,8 +2,8 @@ import logging
 import sys
 
 
-# O DeepFace/gdown emite mensagens Unicode (incluindo emojis) ao descarregar
-# modelos. Em processos ocultos no Windows, stdout/stderr podem usar cp1252 e
+# Bibliotecas de terceiros podem emitir mensagens Unicode (incluindo emojis)
+# ao descarregar modelos. Em processos ocultos no Windows, stdout/stderr podem usar cp1252 e
 # lançar UnicodeEncodeError antes mesmo do reconhecimento começar.
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):

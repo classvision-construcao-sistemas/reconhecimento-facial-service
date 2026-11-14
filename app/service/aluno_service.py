@@ -1,4 +1,4 @@
-from app.config.settings import TAMANHO_MAXIMO_CAMPOS
+from app.config.settings import LIMIAR_RECONHECIMENTO, TAMANHO_MAXIMO_CAMPOS
 from app.model.aluno import Aluno
 from app.service.exceptions import AlunoJaCadastradoError, AlunoNaoEncontradoError
 
@@ -44,7 +44,7 @@ class AlunoService:
     def cadastrar(self, matricula, img, dados=None):
         """
         Valida os dados, garante que a matrícula ainda não existe, extrai o
-        embedding do rosto principal (DeepFace/ArcFace, confiança > 0.6) e
+        embedding do rosto principal (SCRFD + TopoFR, confiança > LIMIAR_DETECCAO) e
         persiste o vetor de 512 dimensões com os dados do aluno.
         """
 
@@ -86,7 +86,7 @@ class AlunoService:
         pelo sistema principal em Java.
         """
 
-        # Deteta rostos descartando confianças <= 0.6
+        # Deteta rostos descartando confianças <= LIMIAR_DETECCAO
         faces = self.face_extraction_service.process_multiple_faces(img)
 
         if not faces:
@@ -100,7 +100,7 @@ class AlunoService:
         embeddings = [face["embedding"] for face in faces]
 
         # Executa a busca de similaridade (distância cosseno) no Milvus
-        search_results = self.repository.buscar_faces(embeddings, threshold=0.5)
+        search_results = self.repository.buscar_faces(embeddings, threshold=LIMIAR_RECONHECIMENTO)
 
         recognized = []
         unrecognized_count = 0
