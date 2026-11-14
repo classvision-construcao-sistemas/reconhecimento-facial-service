@@ -133,6 +133,15 @@ class FaceExtractionService:
         normas = np.linalg.norm(embeddings, axis=1, keepdims=True)
         return embeddings / np.maximum(normas, 1e-12)
 
+    @staticmethod
+    def _rosto_principal(rostos: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        No cadastro, o aluno é quem está mais perto da câmara: o maior rosto.
+        A confiança do SCRFD não serve para esta escolha — rostos pequenos ao
+        fundo podem receber score maior do que o rosto principal.
+        """
+        return max(rostos, key=lambda r: r["facial_area"]["w"] * r["facial_area"]["h"])
+
     # ------------------------------------------------------------------
     # Interface usada pelo AlunoService
     # ------------------------------------------------------------------
@@ -148,8 +157,7 @@ class FaceExtractionService:
         if not rostos:
             raise ValueError("Nenhum rosto detetado na imagem.")
 
-        # Para cadastro, selecionamos o rosto com maior confiança na imagem
-        best_face = max(rostos, key=lambda r: r["confidence"])
+        best_face = self._rosto_principal(rostos)
 
         if best_face["confidence"] <= self.confidence_threshold:
             raise ValueError(f"Confiança do rosto detetado ({best_face['confidence']}) é inferior ou igual ao limite exigido ({self.confidence_threshold}). Falso positivo descartado.")

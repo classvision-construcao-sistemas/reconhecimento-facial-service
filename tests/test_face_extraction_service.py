@@ -129,18 +129,30 @@ def test_cadastro_com_confianca_baixa_levanta_value_error(servico):
         servico.process_single_face(foto())
 
 
-def test_cadastro_usa_o_rosto_de_maior_confianca(servico):
+def test_cadastro_usa_o_maior_rosto_mesmo_com_confianca_menor(servico):
+    # rosto pequeno ao fundo com score alto vs. o aluno, perto da câmara, com score menor
     servico._detector = FakeDetector([
-        (10, 10, 50, 50, 0.70),
-        (120, 10, 160, 50, 0.95),
+        (10, 10, 40, 45, 0.95),
+        (120, 10, 220, 130, 0.80),
     ])
 
     embedding = servico.process_single_face(foto())
 
     assert len(embedding) == 512
     assert len(servico.alinhados) == 1
-    # landmark do rosto escolhido: x1 + 5 do rosto com score 0.95
+    # landmark do rosto escolhido: x1 + 5 do maior rosto
     assert servico.alinhados[0][0][0] == pytest.approx(125.0)
+
+
+def test_cadastro_rejeita_maior_rosto_com_confianca_baixa(servico):
+    # a confiança continua a ser exigida — mas do rosto escolhido, o maior
+    servico._detector = FakeDetector([
+        (10, 10, 40, 45, 0.95),
+        (120, 10, 220, 130, 0.50),
+    ])
+
+    with pytest.raises(ValueError, match="inferior ou igual"):
+        servico.process_single_face(foto())
 
 
 def test_importar_a_aplicacao_nao_carrega_os_modelos(client):

@@ -37,7 +37,7 @@ EXTENSOES = (".jpg", ".jpeg", ".png", ".webp")
 
 
 # ---------------------------------------------------------------------------
-# Motores: devolvem [(confiança, embedding normalizado)] por foto
+# Motores: devolvem [(confiança, embedding normalizado, área)] por foto
 # ---------------------------------------------------------------------------
 
 class MotorTopoFR:
@@ -53,7 +53,8 @@ class MotorTopoFR:
         if not detectados:
             return []
         vetores = self.servico._vetorizar(img, detectados)
-        return [(r["confidence"], v) for r, v in zip(detectados, vetores)]
+        return [(r["confidence"], v, r["facial_area"]["w"] * r["facial_area"]["h"])
+                for r, v in zip(detectados, vetores)]
 
 
 class MotorDeepFace:
@@ -80,7 +81,8 @@ class MotorDeepFace:
             if r.get("face_confidence", 0) <= 0:
                 continue  # enforce_detection=False devolve a imagem inteira quando não acha rosto
             v = np.asarray(r["embedding"], np.float32)
-            saida.append((float(r["face_confidence"]), v / max(np.linalg.norm(v), 1e-12)))
+            area = r["facial_area"]["w"] * r["facial_area"]["h"]
+            saida.append((float(r["face_confidence"]), v / max(np.linalg.norm(v), 1e-12), area))
         return saida
 
 
@@ -137,11 +139,15 @@ def taxas(genuinos, impostores, limiar):
 
 
 def sugerir_limiar(genuinos, impostores):
-    """Limiar que minimiza FAR + FRR, desempatando pelo mais alto (mais conservador)."""
+    """
+    Limiar que minimiza FAR + FRR. Quando vários empatam (por exemplo, quando
+    as duas distribuições não se sobrepõem), devolve o meio desse intervalo:
+    a ponta ficaria colada a um dos lados e erraria à primeira foto nova.
+    """
     candidatos = np.linspace(0.0, 1.0, 1001)
-    custos = [sum(taxas(genuinos, impostores, c)) for c in candidatos]
-    melhor = min(custos)
-    return max(c for c, custo in zip(candidatos, custos) if custo == melhor)
+    custos = np.array([sum(taxas(genuinos, impostores, c)) for c in candidatos])
+    melhores = candidatos[custos == custos.min()]
+    return float((melhores.min() + melhores.max()) / 2)
 
 
 def aumentos(img):
@@ -160,7 +166,8 @@ def aumentos(img):
 # ---------------------------------------------------------------------------
 
 def principal(rostos):
-    return max(rostos, key=lambda r: r[0]) if rostos else None
+    """Mesma regra do cadastro no serviço: o maior rosto da foto."""
+    return max(rostos, key=lambda r: r[2]) if rostos else None
 
 
 def main():
@@ -233,8 +240,8 @@ def main():
     total = {"certos": 0, "errados": 0, "perdidos": 0, "presentes": 0}
     for turma in turmas:
         rostos = motor.rostos(ler(os.path.join(pasta_turmas, turma)))
-        por_deteccao = {t: sum(c > t for c, _ in rostos) for t in (0.4, 0.5, 0.6)}
-        validos = [v for c, v in rostos if c > args.limiar_deteccao]
+        por_deteccao = {t: sum(c > t for c, *_ in rostos) for t in (0.4, 0.5, 0.6)}
+        validos = [v for c, v, _ in rostos if c > args.limiar_deteccao]
 
         identificados = {}
         for v in validos:
