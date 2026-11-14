@@ -1,6 +1,6 @@
 # Microsserviço de Reconhecimento Facial (ClassVision)
 
-Microsserviço de reconhecimento facial (ClassVision): deteção de múltiplos rostos, extração de embeddings com **DeepFace/ArcFace** e busca por similaridade numa base vetorial **Zilliz Cloud (Milvus)**.
+Microsserviço de reconhecimento facial (ClassVision): deteção de múltiplos rostos, extração de embeddings com **SCRFD + TopoFR** (via onnxruntime) e busca por similaridade numa base vetorial **Zilliz Cloud (Milvus)**.
 
 Funciona como motor biométrico para a automação de chamadas em sala de aula: recebe a foto da turma, identifica os alunos cadastrados e devolve as matrículas ao sistema principal em Java.
 
@@ -14,7 +14,7 @@ app/
 ├── controller/docs_controller.py      Swagger UI (/apidocs) e /openapi.yaml
 ├── service/aluno_service.py           orquestração do domínio
 ├── service/exceptions.py              erros de domínio (409/404)
-├── service/face_extraction_service.py motor de IA (DeepFace + ArcFace)
+├── service/face_extraction_service.py motor de IA (SCRFD + TopoFR)
 ├── repository/aluno_repository.py     persistência vetorial (pymilvus)
 ├── model/aluno.py                     entidade Aluno
 └── util/image_processor.py            decodificação/redimensionamento (OpenCV)
@@ -38,7 +38,10 @@ python main.py
 
 Servidor em `http://0.0.0.0:5000`.
 
-Na primeira execução, o DeepFace pode demorar enquanto prepara os modelos.
+Na primeira requisição de cadastro ou auditoria, o serviço descarrega os modelos
+para `models/` (~16 MB do detetor SCRFD, extraído do pacote oficial `buffalo_l`
+do insightface, e ~166 MB do TopoFR) e confere o SHA-256 de cada um. As
+execuções seguintes usam a cópia local.
 Confirme o serviço em `http://localhost:5000/api/health`.
 
 ## Documentação da API (Swagger)
@@ -88,10 +91,42 @@ curl -X POST http://localhost:5000/api/v1/cadastrar-aluno \
 
 ## Testes
 
-Os testes usam um cliente Milvus em memória e um DeepFace simulado — não precisam
-de credenciais do Zilliz, de TensorFlow nem de rede.
+Os testes usam um cliente Milvus em memória e um motor de IA simulado — não precisam
+de credenciais do Zilliz, dos modelos .onnx nem de rede.
 
 ```bash
 pip install -r requirements-dev.txt
 python -m pytest
 ```
+
+## Motor biométrico
+
+```
+foto ─► SCRFD-10G (deteção + 5 landmarks, numa cópia de 1024 px)
+     ─► norm_crop (alinhamento 112×112, recortado da foto em resolução original)
+     ─► TopoFR R50 / Glint360K (embedding de 512 dimensões, normalizado)
+     ─► Zilliz Cloud (similaridade cosseno)
+```
+
+- **TopoFR** — *A Closer Look at Topology Alignment on Face Recognition*, NeurIPS 2024
+  ([código](https://github.com/DanJun6737/TopoFR)). O checkpoint PyTorch é convertido
+  uma única vez com `scripts/exportar_topofr_onnx.py`; o serviço não usa PyTorch.
+- **SCRFD** — detetor do [insightface](https://github.com/deepinsight/insightface).
+  Os modelos do insightface são licenciados apenas para uso não comercial e de pesquisa.
+
+Os limiares ficam em `app/config/settings.py` e podem ser sobrepostos pelo `.env`
+(`LIMIAR_DETECCAO`, `LIMIAR_RECONHECIMENTO`). **Os valores padrão (0.6 e 0.5) foram
+herdados do pipeline antigo e ainda precisam de ser recalibrados** com fotos reais:
+
+```bash
+python scripts/avaliar_reconhecimento.py /caminho/fotos --modelo topofr
+```
+
+O script corre tudo em memória (não grava nada no Zilliz), mede robustez, sugere o
+limiar de reconhecimento a partir de pares da mesma pessoa e de pessoas diferentes,
+e conta acertos nas fotos de turma contra um `gabarito.csv`. A estrutura esperada
+da pasta está descrita no topo do script.
+
+> Trocar de modelo invalida os embeddings já gravados: cada aluno tem de ser
+> recadastrado com foto (`DELETE /api/v1/alunos/<matricula>` e novo cadastro).
+

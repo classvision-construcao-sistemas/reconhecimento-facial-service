@@ -15,11 +15,13 @@ grpcio==1.84.0
 protobuf==7.36.2
 orjson==3.12.0
 
-# --- Visão computacional e IA (DeepFace + ArcFace) ---
-deepface
-mtcnn
+# --- Visão computacional e IA (SCRFD + TopoFR via onnxruntime) ---
+insightface==2.1
+onnx==1.23.2
+onnxruntime==1.23.2
 opencv-python-headless
-tf-keras
+# usado pelo norm_crop do insightface; SimilarityTransform.estimate sai na 2.2
+scikit-image==0.26.0
 
 # --- Suporte ---
 cachetools==7.2.1

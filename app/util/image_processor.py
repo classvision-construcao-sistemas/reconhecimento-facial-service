@@ -5,6 +5,8 @@ import cv2
 # pyrefly: ignore [missing-import]
 from werkzeug.datastructures import FileStorage
 
+from app.config.settings import LARGURA_MAXIMA_ORIGINAL
+
 
 class ImageProcessor:
     @staticmethod
@@ -22,8 +24,10 @@ class ImageProcessor:
         if img is None:
             raise ValueError("Não foi possível descodificar a imagem.")
 
-        # Alivia a carga de memória da CPU antes de enviar para a rede neural
-        img = ImageProcessor.redimensionar(img)
+        # Mantém a resolução original: a detecção corre numa cópia reduzida, mas
+        # os rostos são recortados daqui, preservando o detalhe de quem está
+        # longe da câmara. O teto só evita imagens desproporcionalmente grandes.
+        img = ImageProcessor.redimensionar(img, LARGURA_MAXIMA_ORIGINAL)
         return img
 
     @staticmethod

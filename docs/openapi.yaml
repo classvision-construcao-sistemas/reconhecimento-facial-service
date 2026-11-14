@@ -4,7 +4,7 @@ info:
   version: 1.1.0
   description: |
     Cadastro biométrico de alunos e auditoria de sala por reconhecimento facial
-    (DeepFace/ArcFace + Zilliz Cloud/Milvus). Os embeddings nunca são devolvidos.
+    (SCRFD + TopoFR + Zilliz Cloud/Milvus). Os embeddings nunca são devolvidos.
 servers:
   - url: http://localhost:5000
 tags:
@@ -139,7 +139,7 @@ paths:
                       type: object
                       properties:
                         student_id: {type: string}
-                        confidence_score: {type: number, format: float, description: Similaridade cosseno (>= 0.5).}
+                        confidence_score: {type: number, format: float, description: Similaridade cosseno (>= LIMIAR_RECONHECIMENTO; padrão 0.5, a recalibrar para o TopoFR).}
                         facial_area:
                           type: object
                           properties:

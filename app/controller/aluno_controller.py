@@ -53,7 +53,7 @@ def cadastrar_aluno():
         file = request.files['image']
         img = image_processor.process_upload(file)
 
-        # Extrai o embedding via DeepFace (ArcFace) e persiste os 512 floats no Milvus
+        # Extrai o embedding via SCRFD + TopoFR e persiste os 512 floats no Milvus
         aluno = aluno_service.cadastrar(matricula, img, dados)
 
         return jsonify({
