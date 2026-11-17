@@ -78,6 +78,10 @@ Camada de configuração.
 A camada de interface/rede.
 - **Função:** É a porta de entrada da aplicação. Compõe as dependências `ImageProcessor`, `FaceExtractionService`, `AlunoRepository` e `AlunoService`, expõe os endpoints HTTP e é responsável pela validação dos inputs, pelo tratamento de erros HTTP e pela serialização das respostas em JSON.
 
+### `app/security/jwt_auth.py` -> decorador `requer_perfis`
+A camada de autorização.
+- **Função:** Protege as rotas `/api/v1/*` com o JWT emitido pelo `cv-authentication-service`. Lê o token do cabeçalho `Authorization: Bearer`, valida a assinatura HMAC com o segredo compartilhado `JWT_SECRET` (algoritmo fixado pelo tamanho da chave, como no `turma-service`), exige `exp` e confere se a claim `roles` contém um dos perfis autorizados para a rota. Responde 401 (sem token, token inválido ou expirado), 403 (perfil sem permissão) ou 500 (segredo não configurado), sempre antes de qualquer processamento da imagem.
+
 ### `app/service/aluno_service.py` -> Classe `AlunoService`
 A camada de orquestração do domínio.
 - **Função:** Liga o motor de IA à persistência. Em `cadastrar` extrai o embedding do rosto principal e grava-o associado à matrícula; em `auditar_sala` deteta múltiplos rostos, executa a busca vetorial em lote e monta o payload de auditoria (reconhecidos, contagem de desconhecidos e total de rostos).

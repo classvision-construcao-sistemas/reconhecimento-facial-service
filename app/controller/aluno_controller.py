@@ -2,7 +2,9 @@
 from flask import Blueprint, request, jsonify
 import logging
 
+from app.config.settings import PERFIS_CHAMADA, PERFIS_CONSULTA, PERFIS_GESTAO_ALUNOS
 from app.repository.aluno_repository import AlunoRepository
+from app.security.jwt_auth import requer_perfis
 from app.service.aluno_service import AlunoService, CAMPOS_OPCIONAIS
 from app.service.exceptions import AlunoJaCadastradoError, AlunoNaoEncontradoError
 from app.service.face_extraction_service import FaceExtractionService
@@ -30,6 +32,7 @@ def health():
 
 
 @aluno_bp.route('/v1/cadastrar-aluno', methods=['POST'])
+@requer_perfis(*PERFIS_GESTAO_ALUNOS)
 def cadastrar_aluno():
     """
     Endpoint POST /api/v1/cadastrar-aluno
@@ -73,6 +76,7 @@ def cadastrar_aluno():
 
 
 @aluno_bp.route('/v1/alunos/<matricula>', methods=['GET'])
+@requer_perfis(*PERFIS_CONSULTA)
 def buscar_aluno(matricula):
     """Endpoint GET /api/v1/alunos/<matricula> — dados do aluno (sem embedding)."""
     try:
@@ -85,6 +89,7 @@ def buscar_aluno(matricula):
 
 
 @aluno_bp.route('/v1/alunos/<matricula>', methods=['DELETE'])
+@requer_perfis(*PERFIS_GESTAO_ALUNOS)
 def excluir_aluno(matricula):
     """Endpoint DELETE /api/v1/alunos/<matricula> — remove o aluno e a biometria."""
     try:
@@ -101,6 +106,7 @@ def excluir_aluno(matricula):
 
 
 @aluno_bp.route('/v1/auditar-sala', methods=['POST'])
+@requer_perfis(*PERFIS_CHAMADA)
 def auditar_sala():
     """
     Endpoint POST /api/v1/auditar-sala
