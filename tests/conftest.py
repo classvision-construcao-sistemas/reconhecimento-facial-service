@@ -1,12 +1,19 @@
 import io
 import re
+import time
 
 import cv2
 import numpy as np
+import jwt
 import pytest
 
 from app import create_app
+from app.config import settings
 from app.controller import aluno_controller
+
+
+# Segredo de teste com 64+ bytes: como em produção, o algoritmo fica HS512.
+SEGREDO_TESTE = "segredo-de-teste-do-reconhecimento-facial-com-pelo-menos-64-bytes!!"
 
 
 FILTRO_MATRICULA = re.compile(r'^matricula == "((?:[^"\\]|\\.)*)"$')
@@ -79,11 +86,52 @@ def fake_ia(monkeypatch):
     return servico
 
 
+@pytest.fixture(autouse=True)
+def segredo_jwt(monkeypatch):
+    monkeypatch.setattr(settings, "JWT_SECRET", SEGREDO_TESTE)
+    return SEGREDO_TESTE
+
+
 @pytest.fixture
-def client(fake_milvus, fake_ia):
+def gerar_token():
+    """Gera tokens no formato do cv-authentication-service (jjwt)."""
+    def _gerar(perfis=("ADMINISTRADOR",), expira_em=3600, segredo=SEGREDO_TESTE, algoritmo="HS512", **extra):
+        agora = int(time.time())
+        claims = {
+            "id": 1,
+            "nome": "Utilizador de Teste",
+            "email": "teste@classvision.app",
+            "role": perfis[0] if perfis else None,
+            "instituicaoId": 1,
+            "roles": [f"ROLE_{p}" for p in perfis],
+            "sub": "teste@classvision.app",
+            "iat": agora,
+            "exp": agora + expira_em,
+        }
+        claims.update(extra)
+        claims = {k: v for k, v in claims.items() if v is not ...}
+        return jwt.encode(claims, segredo, algorithm=algoritmo)
+    return _gerar
+
+
+def _novo_cliente():
     app = create_app()
     app.config["TESTING"] = True
     return app.test_client()
+
+
+@pytest.fixture
+def client_anonimo(fake_milvus, fake_ia):
+    """Cliente HTTP sem cabeçalho Authorization."""
+    return _novo_cliente()
+
+
+@pytest.fixture
+def client(fake_milvus, fake_ia, gerar_token):
+    """Cliente HTTP autenticado como ADMINISTRADOR (usado pelos testes de negócio)."""
+    cliente = _novo_cliente()
+    cliente.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {gerar_token()}"
+    return cliente
 
 
 @pytest.fixture

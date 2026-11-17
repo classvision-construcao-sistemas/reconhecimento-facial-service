@@ -91,8 +91,9 @@ curl -X POST http://localhost:5000/api/v1/cadastrar-aluno \
 
 ## Testes
 
-Os testes usam um cliente Milvus em memória e um motor de IA simulado — não precisam
-de credenciais do Zilliz, dos modelos .onnx nem de rede.
+Os testes usam um cliente Milvus em memória, um motor de IA simulado e tokens JWT
+gerados localmente — não precisam de credenciais do Zilliz, dos modelos .onnx,
+do cv-authentication-service nem de rede.
 
 ```bash
 pip install -r requirements-dev.txt
@@ -129,4 +130,28 @@ da pasta está descrita no topo do script.
 
 > Trocar de modelo invalida os embeddings já gravados: cada aluno tem de ser
 > recadastrado com foto (`DELETE /api/v1/alunos/<matricula>` e novo cadastro).
+
+## Autenticação
+
+Todas as rotas `/api/v1/*` exigem o **JWT emitido pelo cv-authentication-service**,
+no cabeçalho `Authorization: Bearer <token>`. `/api/health`, `/apidocs` e
+`/openapi.yaml` são públicos.
+
+A validação segue a do `turma-service`: o mesmo segredo `JWT_SECRET` (configure-o
+no `.env`), algoritmo HMAC fixado pelo tamanho da chave (HS512 a partir de 64
+bytes), `exp` obrigatório com 60 s de tolerância e perfis lidos da claim `roles`.
+
+| Rota | Perfis autorizados |
+| --- | --- |
+| `POST /api/v1/cadastrar-aluno` | ADMINISTRADOR, ADMIN_INSTITUICAO, COORDENADOR, SECRETARIO |
+| `DELETE /api/v1/alunos/<matricula>` | ADMINISTRADOR, ADMIN_INSTITUICAO, COORDENADOR, SECRETARIO |
+| `POST /api/v1/auditar-sala` | ADMINISTRADOR, ADMIN_INSTITUICAO, COORDENADOR, PROFESSOR |
+| `GET /api/v1/alunos/<matricula>` | todos os perfis |
+
+Respostas: **401** sem token ou com token inválido/expirado, **403** quando o perfil
+não tem permissão e **500** se `JWT_SECRET` não estiver configurado (o serviço nunca
+deixa passar um pedido por falta de configuração). Os perfis de cada rota ficam em
+`app/config/settings.py`.
+
+No Swagger (`/apidocs`), use o botão **Authorize** e cole o token do login.
 

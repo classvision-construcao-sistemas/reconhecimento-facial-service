@@ -8,6 +8,7 @@ Jinja2==3.1.6
 MarkupSafe==3.0.4
 Werkzeug==3.1.9
 python-dotenv==1.2.4
+PyJWT==2.15.1
 
 # --- Banco vetorial (Zilliz Cloud / Milvus) ---
 pymilvus==3.0.2

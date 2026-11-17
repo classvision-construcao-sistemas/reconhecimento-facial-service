@@ -90,3 +90,22 @@ TAMANHO_ENTRADA_DETECTOR = (640, 640)
 # Teto de segurança para a resolução original (limita memória; 4096 px
 # preserva fotos de 12 MP de telemóvel sem redução).
 LARGURA_MAXIMA_ORIGINAL = 4096
+
+
+# =========================================================
+# AUTORIZAÇÃO (JWT emitido pelo cv-authentication-service)
+# =========================================================
+
+# Mesmo segredo HMAC do cv-authentication-service e do turma-service
+# (variável JWT_SECRET). Sem ele, as rotas protegidas respondem 500 — o
+# serviço nunca deixa passar um pedido por falta de configuração.
+JWT_SECRET = os.getenv("JWT_SECRET")
+
+# Tolerância de relógio na validação de exp/iat, igual à do Spring Security.
+JWT_TOLERANCIA_SEGUNDOS = 60
+
+# Perfis (RolesEnum do cv-authentication-service) autorizados em cada rota.
+# Espelham as regras do turma-service.
+PERFIS_GESTAO_ALUNOS = ("ADMINISTRADOR", "ADMIN_INSTITUICAO", "COORDENADOR", "SECRETARIO")
+PERFIS_CHAMADA = ("ADMINISTRADOR", "ADMIN_INSTITUICAO", "COORDENADOR", "PROFESSOR")
+PERFIS_CONSULTA = ("ADMINISTRADOR", "ADMIN_INSTITUICAO", "COORDENADOR", "PROFESSOR", "SECRETARIO", "ASSISTENTE")

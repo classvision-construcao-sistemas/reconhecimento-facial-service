@@ -1,12 +1,18 @@
 openapi: 3.0.3
 info:
   title: ClassVision - Microsserviço de Reconhecimento Facial
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Cadastro biométrico de alunos e auditoria de sala por reconhecimento facial
     (SCRFD + TopoFR + Zilliz Cloud/Milvus). Os embeddings nunca são devolvidos.
+
+    **Autenticação:** todas as rotas `/api/v1/*` exigem o JWT emitido pelo
+    cv-authentication-service no cabeçalho `Authorization: Bearer <token>`.
+    Use o botão **Authorize** para testar. `/api/health` é público.
 servers:
   - url: http://localhost:5000
+security:
+  - bearerAuth: []
 tags:
   - name: Alunos
   - name: Auditoria
@@ -15,6 +21,7 @@ paths:
     post:
       tags: [Alunos]
       summary: Cadastra a biometria e os dados de um aluno
+      description: "**Perfis autorizados:** ADMINISTRADOR, ADMIN_INSTITUICAO, COORDENADOR, SECRETARIO."
       requestBody:
         required: true
         content:
@@ -71,6 +78,8 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Erro"}
+        "401": {$ref: "#/components/responses/NaoAutenticado"}
+        "403": {$ref: "#/components/responses/SemPermissao"}
   /api/v1/alunos/{matricula}:
     parameters:
       - name: matricula
@@ -80,6 +89,7 @@ paths:
     get:
       tags: [Alunos]
       summary: Consulta os dados de um aluno (sem embedding)
+      description: "**Perfis autorizados:** todos (ADMINISTRADOR, ADMIN_INSTITUICAO, COORDENADOR, PROFESSOR, SECRETARIO, ASSISTENTE)."
       responses:
         "200":
           description: Aluno encontrado.
@@ -91,9 +101,12 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Erro"}
+        "401": {$ref: "#/components/responses/NaoAutenticado"}
+        "403": {$ref: "#/components/responses/SemPermissao"}
     delete:
       tags: [Alunos]
       summary: Exclui o aluno e a sua biometria
+      description: "**Perfis autorizados:** ADMINISTRADOR, ADMIN_INSTITUICAO, COORDENADOR, SECRETARIO."
       responses:
         "200":
           description: Aluno excluído.
@@ -109,10 +122,13 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Erro"}
+        "401": {$ref: "#/components/responses/NaoAutenticado"}
+        "403": {$ref: "#/components/responses/SemPermissao"}
   /api/v1/auditar-sala:
     post:
       tags: [Auditoria]
       summary: Reconhece os alunos presentes numa foto da turma
+      description: "**Perfis autorizados:** ADMINISTRADOR, ADMIN_INSTITUICAO, COORDENADOR, PROFESSOR."
       requestBody:
         required: true
         content:
@@ -139,7 +155,7 @@ paths:
                       type: object
                       properties:
                         student_id: {type: string}
-                        confidence_score: {type: number, format: float, description: Similaridade cosseno (>= LIMIAR_RECONHECIMENTO; padrão 0.5, a recalibrar para o TopoFR).}
+                        confidence_score: {type: number, format: float, description: "Similaridade cosseno (>= LIMIAR_RECONHECIMENTO; padrão 0.5, a recalibrar para o TopoFR)."}
                         facial_area:
                           type: object
                           properties:
@@ -154,7 +170,26 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Erro"}
+        "401": {$ref: "#/components/responses/NaoAutenticado"}
+        "403": {$ref: "#/components/responses/SemPermissao"}
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token obtido no login do cv-authentication-service.
+  responses:
+    NaoAutenticado:
+      description: Token ausente, inválido ou expirado.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/Erro"}
+    SemPermissao:
+      description: O perfil do utilizador não tem permissão para esta operação.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/Erro"}
   schemas:
     Aluno:
       type: object
