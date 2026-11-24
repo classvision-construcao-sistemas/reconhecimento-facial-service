@@ -37,6 +37,12 @@ class AlunoRepository:
             )
             if settings.CRIAR_COLECAO_AUTOMATICAMENTE and garantir_colecao(client, settings.ZILLIZ_COLLECTION):
                 logging.info(f"Coleção '{settings.ZILLIZ_COLLECTION}' criada no Milvus.")
+            # Num Milvus próprio a coleção fica "released" após reiniciar, e
+            # query/get falham até ser carregada (só search a carregava).
+            try:
+                client.load_collection(collection_name=settings.ZILLIZ_COLLECTION)
+            except Exception as e:
+                logging.warning(f"Não foi possível carregar a coleção '{settings.ZILLIZ_COLLECTION}': {e}")
             self._client = client
         return self._client
 

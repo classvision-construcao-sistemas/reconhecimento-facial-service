@@ -75,3 +75,25 @@ def test_sem_uri_falha_cedo(monkeypatch):
     monkeypatch.setattr(settings, "ZILLIZ_URI", None)
     with pytest.raises(RuntimeError, match="ZILLIZ_URI"):
         settings.validar_credenciais()
+
+
+def test_repositorio_carrega_a_colecao_ao_conectar(monkeypatch):
+    from app.repository import aluno_repository
+
+    chamadas = []
+
+    class MilvusFalso(ClienteFalso):
+        def __init__(self, uri, token):
+            super().__init__(existentes={"Aluno"})
+
+        def load_collection(self, collection_name):
+            chamadas.append(collection_name)
+
+    monkeypatch.setattr(aluno_repository, "MilvusClient", MilvusFalso)
+    monkeypatch.setattr(settings, "ZILLIZ_URI", "http://milvus:19530")
+    monkeypatch.setattr(settings, "ZILLIZ_TOKEN", "")
+    monkeypatch.setattr(settings, "ZILLIZ_COLLECTION", "Aluno")
+
+    aluno_repository.AlunoRepository().client
+
+    assert chamadas == ["Aluno"]
