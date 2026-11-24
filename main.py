@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 
 
@@ -26,5 +27,5 @@ app = create_app()
 if __name__ == "__main__":
     logging.info("A inicializar o Microsserviço ClassVision...")
 
-    # Executa a aplicação na porta 5000 (aberta para a rede)
-    app.run(host="0.0.0.0", port=5000)
+    # Executa a aplicação na porta 5000 (ou na indicada por PORT), aberta para a rede
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")))

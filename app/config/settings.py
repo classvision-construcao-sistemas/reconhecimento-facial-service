@@ -11,9 +11,15 @@ load_dotenv()
 # CREDENCIAIS ZILLIZ CLOUD
 # =========================================================
 
+# ZILLIZ_URI também aceita um Milvus próprio, sem token: "http://milvus:19530"
+# (docker-compose do ClassVision) ou um ficheiro do Milvus Lite ("./milvus.db").
 ZILLIZ_URI = os.getenv("ZILLIZ_URI")
-ZILLIZ_TOKEN = os.getenv("ZILLIZ_TOKEN")
+ZILLIZ_TOKEN = os.getenv("ZILLIZ_TOKEN", "")
 ZILLIZ_COLLECTION = os.getenv("ZILLIZ_COLLECTION", "Aluno")
+
+# Cria a coleção (schema de create_collection.py) na primeira utilização, se
+# ainda não existir. Permite subir o serviço num Milvus vazio sem passo manual.
+CRIAR_COLECAO_AUTOMATICAMENTE = os.getenv("CRIAR_COLECAO_AUTOMATICAMENTE", "true").strip().lower() not in ("0", "false", "nao", "não")
 
 
 # =========================================================
@@ -40,12 +46,21 @@ def validar_credenciais():
     quando o cliente do Milvus é criado (e não no import), para que os testes
     consigam importar a aplicação sem credenciais reais.
     """
-    if not ZILLIZ_URI or not ZILLIZ_TOKEN:
+    if not ZILLIZ_URI:
         raise RuntimeError(
-            "ZILLIZ_URI e/ou ZILLIZ_TOKEN não definidos. "
-            "Copie o ficheiro .env.example para .env e preencha as credenciais "
-            "do Zilliz Cloud antes de iniciar o serviço."
+            "ZILLIZ_URI não definido. Copie o ficheiro .env.example para .env e "
+            "preencha as credenciais do Zilliz Cloud (ou o endereço de um Milvus "
+            "local, ex.: http://localhost:19530) antes de iniciar o serviço."
         )
+    if requer_token(ZILLIZ_URI) and not ZILLIZ_TOKEN:
+        raise RuntimeError(
+            "ZILLIZ_TOKEN não definido. O Zilliz Cloud exige o token do cluster no .env."
+        )
+
+
+def requer_token(uri):
+    """Só o Zilliz Cloud exige token; um Milvus local/Lite aceita ligação anónima."""
+    return "zilliz.com" in (uri or "").lower()
 
 
 # =========================================================

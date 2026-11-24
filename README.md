@@ -27,8 +27,12 @@ python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env     # preencher ZILLIZ_URI, ZILLIZ_TOKEN, ZILLIZ_COLLECTION
-python create_collection.py
+python create_collection.py   # opcional: o serviço cria a coleção sozinho na 1ª utilização
 ```
+
+Sem conta no Zilliz Cloud, aponte `ZILLIZ_URI` para um Milvus próprio, sem token:
+`http://localhost:19530` (o `docker-compose` da pasta `infra/` do ClassVision sobe um)
+ou `./milvus.db` (Milvus Lite, `pip install milvus-lite`, só Linux/macOS).
 
 ## Execução
 

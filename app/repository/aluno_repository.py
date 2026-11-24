@@ -1,7 +1,10 @@
+import logging
+
 # pyrefly: ignore [missing-import]
 from pymilvus import MilvusClient
 
 from app.config import settings
+from app.repository.colecao import garantir_colecao
 
 
 # Campos devolvidos nas leituras. O embedding fica de fora de propósito:
@@ -28,10 +31,13 @@ class AlunoRepository:
     def client(self):
         if self._client is None:
             settings.validar_credenciais()
-            self._client = MilvusClient(
+            client = MilvusClient(
                 uri=settings.ZILLIZ_URI,
                 token=settings.ZILLIZ_TOKEN
             )
+            if settings.CRIAR_COLECAO_AUTOMATICAMENTE and garantir_colecao(client, settings.ZILLIZ_COLLECTION):
+                logging.info(f"Coleção '{settings.ZILLIZ_COLLECTION}' criada no Milvus.")
+            self._client = client
         return self._client
 
     @property
