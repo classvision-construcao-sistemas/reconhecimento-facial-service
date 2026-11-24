@@ -21,8 +21,9 @@ def criar_schema():
 
 
 def criar_indices(client):
+    # Só o vetor precisa de índice. A chave primária já é indexada pelo Milvus;
+    # um AUTOINDEX escalar nela é recusado pelo Milvus próprio/Lite.
     index_params = client.prepare_index_params()
-    index_params.add_index(field_name="id", index_type="AUTOINDEX")
     index_params.add_index(field_name="embedding", index_type="AUTOINDEX", metric_type="COSINE")
     return index_params
 
