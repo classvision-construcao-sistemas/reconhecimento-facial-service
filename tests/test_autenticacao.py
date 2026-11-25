@@ -223,3 +223,24 @@ def test_preflight_cors_nao_exige_token(client_anonimo):
     assert resposta.status_code == 200
     assert resposta.headers.get("Access-Control-Allow-Origin") == "http://localhost:5173"
     assert "authorization" in resposta.headers.get("Access-Control-Allow-Headers", "").lower()
+
+
+def test_origens_cors_vem_da_variavel_de_ambiente():
+    import re
+
+    from app import origens_permitidas
+
+    padroes = origens_permitidas("http://localhost:[*], https://classvision.vercel.app,https://*.exemplo.com")
+
+    def permitida(origem):
+        return any(re.match(p, origem, re.IGNORECASE) for p in padroes)
+
+    assert permitida("http://localhost:5173")
+    assert permitida("http://localhost")
+    assert permitida("https://classvision.vercel.app")
+    assert permitida("https://app.exemplo.com")
+    assert not permitida("https://classvision.vercel.app.evil.com")
+    assert not permitida("https://outro.vercel.app")
+    assert not permitida("http://localhost.evil.com")
+    # Valor vazio explícito: nenhuma origem liberada.
+    assert origens_permitidas("") == []
