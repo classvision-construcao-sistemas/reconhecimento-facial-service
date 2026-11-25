@@ -69,7 +69,7 @@ def test_auditoria_filtra_por_confianca_e_mantem_contrato(servico):
 
     assert len(faces) == 2
     for face in faces:
-        assert set(face) == {"embedding", "facial_area", "confidence"}
+        assert set(face) == {"embedding", "facial_area", "relative_area", "confidence"}
         assert set(face["facial_area"]) == {"x", "y", "w", "h"}
         assert all(isinstance(v, int) for v in face["facial_area"].values())
         assert len(face["embedding"]) == 512
@@ -96,6 +96,13 @@ def test_detecta_em_copia_reduzida_e_recorta_da_resolucao_original(servico):
     assert servico._detector.recebido[:2] == (768, 1024)
     # ...o facial_area continua nesse referencial (o mesmo de sempre)...
     assert faces[0]["facial_area"] == {"x": 100, "y": 100, "w": 50, "h": 60}
+    # ...e o relative_area é a fração da foto, igual em qualquer resolução
+    assert faces[0]["relative_area"] == {
+        "x": round(100 / 1024, 4),
+        "y": round(100 / 768, 4),
+        "w": round(50 / 1024, 4),
+        "h": round(60 / 768, 4),
+    }
     # ...mas os landmarks usados no recorte estão na escala original (2x)
     np.testing.assert_allclose(servico.alinhados[0][0], [210.0, 210.0])
 
@@ -213,3 +220,15 @@ def test_downloader_nao_descarrega_se_o_modelo_ja_existe(tmp_path, monkeypatch):
 
     monkeypatch.setattr(model_downloader, "_baixar", nao_devia)
     assert model_downloader.garantir_modelo(str(tmp_path), "m.onnx", "http://x", "qualquer").endswith("m.onnx")
+
+
+def test_caixas_viram_json(servico):
+    # O detector real devolve numpy.float32; a resposta da API precisa ser JSON.
+    import json
+
+    servico._detector = FakeDetector([(10, 20, 60, 80, 0.90)])
+
+    face = servico.process_multiple_faces(foto())[0]
+
+    json.dumps({"facial_area": face["facial_area"], "relative_area": face["relative_area"]})
+    assert all(type(v) is float for v in face["relative_area"].values())

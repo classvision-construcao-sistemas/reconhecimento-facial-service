@@ -143,6 +143,8 @@ def test_auditar_sala_reconhece_aluno(client, form):
     corpo = resposta.get_json()
     assert corpo["total_faces_detected"] == 1
     assert corpo["recognized_students"][0]["student_id"] == "2024020"
+    assert corpo["recognized_students"][0]["relative_area"] == {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4}
+    assert corpo["unrecognized_faces"] == []
 
 
 def test_auditar_sala_sem_imagem_400(client):

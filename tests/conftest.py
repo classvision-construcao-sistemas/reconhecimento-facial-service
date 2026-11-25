@@ -81,7 +81,12 @@ def fake_ia(monkeypatch):
     monkeypatch.setattr(
         servico,
         "process_multiple_faces",
-        lambda img: [{"embedding": [0.1] * 512, "facial_area": {"x": 1, "y": 2, "w": 3, "h": 4}, "confidence": 0.99}],
+        lambda img: [{
+            "embedding": [0.1] * 512,
+            "facial_area": {"x": 1, "y": 2, "w": 3, "h": 4},
+            "relative_area": {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4},
+            "confidence": 0.99,
+        }],
     )
     return servico
 

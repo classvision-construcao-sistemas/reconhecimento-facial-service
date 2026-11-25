@@ -97,7 +97,8 @@ class FaceExtractionService:
 
         rostos = []
         for bbox, kps in zip(bboxes, kpss):
-            x1, y1, x2, y2, score = bbox
+            # float() tira o tipo do numpy, que o JSON não serializa.
+            x1, y1, x2, y2, score = (float(v) for v in bbox)
             x1, y1 = max(0.0, x1), max(0.0, y1)
             x2, y2 = min(float(largura_det), x2), min(float(altura_det), y2)
             rostos.append({
@@ -106,6 +107,14 @@ class FaceExtractionService:
                     "y": int(round(y1)),
                     "w": int(round(x2 - x1)),
                     "h": int(round(y2 - y1)),
+                },
+                # Mesma caixa em frações (0 a 1) da foto, para o app desenhar
+                # sobre a imagem em qualquer tamanho.
+                "relative_area": {
+                    "x": round(x1 / largura_det, 4),
+                    "y": round(y1 / altura_det, 4),
+                    "w": round((x2 - x1) / largura_det, 4),
+                    "h": round((y2 - y1) / altura_det, 4),
                 },
                 "confidence": float(score),
                 "landmarks": np.asarray(kps, dtype=np.float32) * escala,
@@ -182,6 +191,7 @@ class FaceExtractionService:
             {
                 "embedding": embedding.tolist(),
                 "facial_area": rosto["facial_area"],
+                "relative_area": rosto["relative_area"],
                 "confidence": rosto["confidence"],
             }
             for rosto, embedding in zip(rostos, embeddings)

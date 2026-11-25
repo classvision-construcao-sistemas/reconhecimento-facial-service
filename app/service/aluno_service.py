@@ -93,6 +93,7 @@ class AlunoService:
             return {
                 "message": "Auditoria concluída. Nenhum rosto válido detetado na imagem.",
                 "recognized_students": [],
+                "unrecognized_faces": [],
                 "unrecognized_count": 0,
                 "total_faces_detected": 0
             }
@@ -103,6 +104,7 @@ class AlunoService:
         search_results = self.repository.buscar_faces(embeddings, threshold=LIMIAR_RECONHECIMENTO)
 
         recognized = []
+        unrecognized = []
         unrecognized_count = 0
 
         for i, match in enumerate(search_results):
@@ -110,14 +112,17 @@ class AlunoService:
                 recognized.append({
                     "student_id": match["student_id"],
                     "confidence_score": match["score"],
-                    "facial_area": faces[i]["facial_area"]
+                    "facial_area": faces[i]["facial_area"],
+                    "relative_area": faces[i].get("relative_area"),
                 })
             else:
                 unrecognized_count += 1
+                unrecognized.append({"relative_area": faces[i].get("relative_area")})
 
         return {
             "message": "Auditoria concluída com sucesso.",
             "recognized_students": recognized,
+            "unrecognized_faces": unrecognized,
             "unrecognized_count": unrecognized_count,
             "total_faces_detected": len(faces)
         }
